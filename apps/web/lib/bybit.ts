@@ -9,6 +9,10 @@ const HOSTS: Record<BybitMode, string> = {
 
 const RECV_WINDOW = "5000";
 
+// A more browser-ish UA helps with some WAFs that block obvious bot strings.
+const UA =
+  "Mozilla/5.0 (compatible; BTG-Trader/0.1; +https://blacktrianglecorp.vercel.app)";
+
 function signGet(secret: string, params: { timestamp: string; apiKey: string; query: string }) {
   const message = params.timestamp + params.apiKey + RECV_WINDOW + params.query;
   return createHmac("sha256", secret).update(message).digest("hex");
@@ -17,6 +21,35 @@ function signGet(secret: string, params: { timestamp: string; apiKey: string; qu
 export type VerifyResult =
   | { ok: true; permissions: ("read" | "trade")[] }
   | { ok: false; error: string };
+
+/**
+ * Probe a public Bybit endpoint to confirm the server can reach Bybit at all.
+ * Returns null on success, an error message on failure.
+ */
+async function probeReachability(host: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${host}/v5/market/time`, {
+      method: "GET",
+      headers: { "User-Agent": UA, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (r.status === 403) {
+      const body = await r.text().catch(() => "");
+      return (
+        `Cannot reach Bybit from our server — even a public endpoint (${host}/v5/market/time) ` +
+        `returns 403. This is a Bybit-side block on our server's IP range, not your key. ` +
+        `Likely fixes: (a) move this route to a different Vercel region, (b) route through ` +
+        `a dedicated proxy. Body: ${body.slice(0, 160)}`
+      );
+    }
+    if (!r.ok) {
+      return `Bybit basic probe returned HTTP ${r.status}. Service may be degraded.`;
+    }
+    return null;
+  } catch (e) {
+    return e instanceof Error ? `Could not reach Bybit: ${e.message}` : "Could not reach Bybit.";
+  }
+}
 
 /**
  * Verify a Bybit API key by hitting /v5/user/query-api and inspecting the
@@ -32,6 +65,15 @@ export async function verifyBybitKey(
   mode: BybitMode,
 ): Promise<VerifyResult> {
   const host = HOSTS[mode];
+
+  // 1. Connectivity probe — distinguishes "Bybit blocks our IP" from
+  //    "your key is bad / endpoint rejected auth".
+  const reachErr = await probeReachability(host);
+  if (reachErr) {
+    return { ok: false, error: reachErr };
+  }
+
+  // 2. Authed call.
   const timestamp = Date.now().toString();
   const sign = signGet(apiSecret, { timestamp, apiKey, query: "" });
 
@@ -44,7 +86,8 @@ export async function verifyBybitKey(
         "X-BAPI-TIMESTAMP": timestamp,
         "X-BAPI-RECV-WINDOW": RECV_WINDOW,
         "X-BAPI-SIGN": sign,
-        "User-Agent": "BTG-Trader/0.1",
+        "X-BAPI-SIGN-TYPE": "2",
+        "User-Agent": UA,
         Accept: "application/json",
       },
       cache: "no-store",
@@ -53,42 +96,49 @@ export async function verifyBybitKey(
     return {
       ok: false,
       error: e instanceof Error
-        ? `Could not reach Bybit: ${e.message}`
-        : "Could not reach Bybit.",
+        ? `Could not reach Bybit auth endpoint: ${e.message}`
+        : "Could not reach Bybit auth endpoint.",
     };
   }
 
   if (!res.ok) {
-    if (res.status === 403) {
-      return {
-        ok: false,
-        error:
-          "Bybit returned 403 (Forbidden). Most common causes: (1) the key has an IP restriction that excludes our server IP — set it to Unrestricted on Bybit; (2) Bybit is geo-blocking our server region — try again after the next deploy with a different region; (3) wrong environment — make sure you're using a Demo Trading key with Demo mode (or a mainnet key with Live mode).",
-      };
-    }
-    let detail = "";
+    let body = "";
     try {
-      detail = (await res.text()).slice(0, 240);
+      body = (await res.text()).slice(0, 240);
     } catch {
       /* ignore */
     }
+    if (res.status === 403) {
+      // Probe passed (we wouldn't be here otherwise) but the authed call failed.
+      // That means Bybit rejected this specific request based on key/signature,
+      // not based on our IP.
+      return {
+        ok: false,
+        error:
+          "Bybit returned 403 on the authed call (but our server can reach Bybit fine). " +
+          "This usually means: (a) wrong environment — the key was created in your real " +
+          "Bybit account, not Demo Trading; try recreating it after toggling Demo Trading " +
+          "mode on bybit.com; (b) the key was deleted / expired on Bybit. " +
+          (body ? `Bybit response: ${body}` : ""),
+      };
+    }
     return {
       ok: false,
-      error: `Bybit returned HTTP ${res.status}${detail ? `: ${detail}` : ""}.`,
+      error: `Bybit returned HTTP ${res.status}${body ? `: ${body}` : ""}.`,
     };
   }
 
-  let body: unknown;
+  let payload: unknown;
   try {
-    body = await res.json();
+    payload = await res.json();
   } catch {
     return { ok: false, error: "Bybit returned a response we could not parse." };
   }
-  if (typeof body !== "object" || body === null) {
+  if (typeof payload !== "object" || payload === null) {
     return { ok: false, error: "Bybit returned an unexpected payload." };
   }
 
-  const data = body as {
+  const data = payload as {
     retCode?: number;
     retMsg?: string;
     result?: {
@@ -99,14 +149,13 @@ export async function verifyBybitKey(
 
   if (data.retCode !== 0) {
     const msg = data.retMsg ?? "Unknown error";
-    // 10003/10004 = invalid signature; 33004 = expired; etc. Surface the raw msg.
     if (/sign/i.test(msg) || /api key/i.test(msg)) {
       return {
         ok: false,
         error:
           mode === "demo"
-            ? "Bybit rejected the key. Did you create it in Demo Trading mode? (Demo and live keys are not interchangeable.)"
-            : "Bybit rejected the key. Check that this is a mainnet key, not a Demo Trading key.",
+            ? "Bybit rejected the key. The key may have been created on your real Bybit account rather than in Demo Trading mode. Toggle Demo Trading on bybit.com and create a fresh key there."
+            : "Bybit rejected the key. Make sure this is a mainnet key, not a Demo Trading key.",
       };
     }
     return { ok: false, error: `Bybit: ${msg}` };
@@ -124,7 +173,6 @@ export async function verifyBybitKey(
 
   const collected: ("read" | "trade")[] = [];
   if ((perms.ContractTrade ?? []).length > 0) collected.push("trade");
-  // ReadOnly = 0 means the key can do non-read things (which subsumes read).
   if (data.result?.readOnly === 0 || (perms.ContractTrade ?? []).length > 0) {
     collected.push("read");
   }
