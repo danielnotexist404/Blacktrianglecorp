@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Lock, ShieldCheck, User, Sliders, Globe } from "lucide-react";
 
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
   { id: "risk", label: "Risk", icon: Sliders },
@@ -165,11 +166,18 @@ function NotificationsPanel() {
 }
 
 function AccountPanel() {
+  const [email, setEmail] = useState("—");
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) setEmail(data.user.email);
+    });
+  }, []);
   return (
     <Card>
       <CardHeader title="Profile" />
       <div className="p-6 space-y-5">
-        <Field label="Email" value="support@secureops.co.il" />
+        <Field label="Email" value={email} />
         <Field
           label="Subscription"
           value="Free · pre-MVP"

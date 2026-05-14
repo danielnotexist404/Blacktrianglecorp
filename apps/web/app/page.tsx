@@ -25,9 +25,9 @@ export default function LandingPage() {
             <Link href="/login">
               <Button variant="ghost" size="sm">Sign in</Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/signup">
               <Button variant="primary" size="sm">
-                Open dashboard
+                Get started
                 <ArrowUpRight size={14} />
               </Button>
             </Link>
@@ -54,15 +54,15 @@ export default function LandingPage() {
               for sixty days before a single live order is sent.
             </p>
             <div className="mt-10 flex items-center gap-3">
-              <Link href="/dashboard">
+              <Link href="/signup">
                 <Button variant="primary" size="lg">
-                  Launch dashboard
+                  Create account
                   <ArrowUpRight size={16} />
                 </Button>
               </Link>
-              <a href="#strategy">
-                <Button variant="secondary" size="lg">Read the strategy</Button>
-              </a>
+              <Link href="/login">
+                <Button variant="secondary" size="lg">Sign in</Button>
+              </Link>
             </div>
             <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-[12px] text-ink-tertiary uppercase tracking-[0.08em]">
               <span>Bybit · Read + Trade only</span>

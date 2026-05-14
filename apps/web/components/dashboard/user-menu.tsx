@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChevronDown, User, KeyRound, Settings, LogOut, Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useMode } from "@/lib/mode";
+import { signOut } from "@/app/(auth)/actions";
 
-export function UserMenu() {
+export function UserMenu({ email }: { email: string }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useMode();
-  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,13 +32,14 @@ export function UserMenu() {
     };
   }, [open]);
 
+  const initials = (email || "??").slice(0, 2).toUpperCase();
+
   function handleSignOut() {
     setOpen(false);
-    router.push("/login");
+    startTransition(async () => {
+      await signOut();
+    });
   }
-
-  const email = "support@secureops.co.il";
-  const initials = email.slice(0, 2).toUpperCase();
 
   return (
     <div className="relative" ref={ref}>
@@ -53,7 +54,9 @@ export function UserMenu() {
           {initials}
         </div>
         <div className="hidden xl:flex flex-col leading-tight text-left">
-          <span className="text-[12.5px] text-ink-primary">{email}</span>
+          <span className="text-[12.5px] text-ink-primary max-w-[160px] truncate">
+            {email}
+          </span>
           <span className="text-[10.5px] text-ink-tertiary uppercase tracking-[0.06em]">
             {mode === "demo" ? "Demo mode" : "Live mode"}
           </span>
@@ -69,15 +72,15 @@ export function UserMenu() {
 
       {open && (
         <div className="absolute right-0 top-11 w-64 bg-bg-overlay border border-line-subtle rounded-card shadow-2xl shadow-black/60 overflow-hidden fade-in">
-          {/* Identity block */}
           <div className="px-4 py-3.5 border-b border-line-divider">
-            <div className="text-[13.5px] font-medium text-ink-primary truncate">{email}</div>
+            <div className="text-[13.5px] font-medium text-ink-primary truncate">
+              {email}
+            </div>
             <div className="text-[11.5px] text-ink-tertiary mt-0.5 uppercase tracking-[0.06em]">
               Signed in
             </div>
           </div>
 
-          {/* Mode picker */}
           <div className="px-3 py-3 border-b border-line-divider">
             <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-tertiary mb-2 px-1">
               Trading mode
@@ -99,7 +102,6 @@ export function UserMenu() {
             </div>
           </div>
 
-          {/* Links */}
           <div className="py-1.5">
             <MenuItem icon={<User size={14} strokeWidth={1.5} />} href="/settings" onClick={() => setOpen(false)}>
               Profile
@@ -115,10 +117,11 @@ export function UserMenu() {
           <div className="border-t border-line-divider py-1.5">
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-ink-secondary hover:text-ink-primary hover:bg-bg-elevated transition-colors text-left"
+              disabled={pending}
+              className="w-full flex items-center gap-3 px-4 py-2 text-[13px] text-ink-secondary hover:text-ink-primary hover:bg-bg-elevated transition-colors text-left disabled:opacity-50"
             >
               <LogOut size={14} strokeWidth={1.5} />
-              <span>Sign out</span>
+              <span>{pending ? "Signing out…" : "Sign out"}</span>
             </button>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { SymbolPicker } from "@/components/dashboard/symbol-picker";
 import { UserMenu } from "@/components/dashboard/user-menu";
 import { ModeIndicator } from "@/components/dashboard/mode-indicator";
 
-export function TopBar() {
+export function TopBar({ userEmail }: { userEmail: string }) {
   return (
     <header className="sticky top-0 z-20 h-16 px-6 lg:px-8 flex items-center justify-between bg-bg-base/85 backdrop-blur-[6px] border-b border-line-divider">
       <div className="flex items-center gap-3">
@@ -21,7 +21,7 @@ export function TopBar() {
           <Bell size={16} strokeWidth={1.5} />
           <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-accent" />
         </button>
-        <UserMenu />
+        <UserMenu email={userEmail} />
       </div>
     </header>
   );
