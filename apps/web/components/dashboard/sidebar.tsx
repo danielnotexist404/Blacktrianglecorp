@@ -23,7 +23,7 @@ const navMain = [
   { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
-export function Sidebar() {
+export function Sidebar({ hasApiKey }: { hasApiKey: boolean }) {
   const pathname = usePathname();
   const [mode] = useMode();
   return (
@@ -64,8 +64,16 @@ export function Sidebar() {
       </nav>
 
       <div className="px-5 py-4 border-t border-line-divider space-y-3">
-        <Status label="Bybit" tone="warn" detail="Not connected" />
-        <Status label="Engine" tone="warn" detail="Awaiting key" />
+        <Status
+          label="Bybit"
+          tone={hasApiKey ? "ok" : "warn"}
+          detail={hasApiKey ? "Connected" : "Not connected"}
+        />
+        <Status
+          label="Engine"
+          tone="warn"
+          detail={hasApiKey ? "Idle" : "Awaiting key"}
+        />
         <Status
           label="Mode"
           tone={mode === "demo" ? "paper" : "live"}
