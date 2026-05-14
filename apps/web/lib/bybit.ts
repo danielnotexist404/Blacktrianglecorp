@@ -44,6 +44,8 @@ export async function verifyBybitKey(
         "X-BAPI-TIMESTAMP": timestamp,
         "X-BAPI-RECV-WINDOW": RECV_WINDOW,
         "X-BAPI-SIGN": sign,
+        "User-Agent": "BTG-Trader/0.1",
+        Accept: "application/json",
       },
       cache: "no-store",
     });
@@ -57,7 +59,23 @@ export async function verifyBybitKey(
   }
 
   if (!res.ok) {
-    return { ok: false, error: `Bybit returned HTTP ${res.status}.` };
+    if (res.status === 403) {
+      return {
+        ok: false,
+        error:
+          "Bybit returned 403 (Forbidden). Most common causes: (1) the key has an IP restriction that excludes our server IP — set it to Unrestricted on Bybit; (2) Bybit is geo-blocking our server region — try again after the next deploy with a different region; (3) wrong environment — make sure you're using a Demo Trading key with Demo mode (or a mainnet key with Live mode).",
+      };
+    }
+    let detail = "";
+    try {
+      detail = (await res.text()).slice(0, 240);
+    } catch {
+      /* ignore */
+    }
+    return {
+      ok: false,
+      error: `Bybit returned HTTP ${res.status}${detail ? `: ${detail}` : ""}.`,
+    };
   }
 
   let body: unknown;

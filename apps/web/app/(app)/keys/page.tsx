@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { KeysClient, type StoredKey } from "./keys-client";
 
 export const dynamic = "force-dynamic";
+// Frankfurt is closer to where Bybit is willing to accept server traffic
+// than Vercel's default US region. Server actions invoked from this page
+// inherit this region.
+export const preferredRegion = ["fra1"];
 
 export default async function KeysPage() {
   const supabase = await createClient();
