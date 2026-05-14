@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const AUTHED_PATHS = ["/dashboard", "/strategy", "/trades", "/keys", "/settings"];
+const AUTHED_PATHS = ["/dashboard", "/strategy", "/trades", "/keys", "/settings", "/admin"];
 const AUTH_PAGES = ["/login", "/signup"];
 
 export async function updateSession(request: NextRequest) {

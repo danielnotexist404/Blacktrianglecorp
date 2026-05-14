@@ -9,6 +9,7 @@ import {
   Settings,
   KeyRound,
   LifeBuoy,
+  ShieldAlert,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -23,7 +24,13 @@ const navMain = [
   { label: "Settings", icon: Settings, href: "/settings" },
 ];
 
-export function Sidebar({ hasApiKey }: { hasApiKey: boolean }) {
+export function Sidebar({
+  hasApiKey,
+  isAdmin = false,
+}: {
+  hasApiKey: boolean;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const [mode] = useMode();
   return (
@@ -80,6 +87,18 @@ export function Sidebar({ hasApiKey }: { hasApiKey: boolean }) {
           detail={mode === "demo" ? "Demo · Testnet" : "Live · Mainnet"}
         />
       </div>
+
+      {isAdmin && (
+        <div className="px-3 py-3 border-t border-line-divider">
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 px-3 h-9 rounded-md text-[13px] text-accent hover:bg-accent/[0.08] transition-colors border border-accent/30 bg-accent/[0.04]"
+          >
+            <ShieldAlert size={15} strokeWidth={1.5} />
+            <span>Admin panel</span>
+          </Link>
+        </div>
+      )}
 
       <div className="px-3 py-4 border-t border-line-divider">
         <Link

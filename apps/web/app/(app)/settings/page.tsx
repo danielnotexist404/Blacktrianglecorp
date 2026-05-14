@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Lock, ShieldCheck, User, Sliders, Globe } from "lucide-react";
+import { Bell, Lock, ShieldCheck, User, Globe } from "lucide-react";
 
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 const TABS = [
-  { id: "risk", label: "Risk", icon: Sliders },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "account", label: "Account", icon: User },
   { id: "security", label: "Security", icon: ShieldCheck },
@@ -19,7 +18,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<TabId>("risk");
+  const [tab, setTab] = useState<TabId>("notifications");
   return (
     <div className="max-w-[1120px] mx-auto space-y-6">
       <div>
@@ -27,7 +26,8 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-[13px] text-ink-tertiary">
-          Configure how the strategy engine and your account behave.
+          Manage how the platform talks to you. Strategy parameters and risk
+          caps are set centrally by Black Triangle staff.
         </p>
       </div>
 
@@ -52,7 +52,6 @@ export default function SettingsPage() {
         </nav>
 
         <div className="space-y-5 fade-in">
-          {tab === "risk" && <RiskPanel />}
           {tab === "notifications" && <NotificationsPanel />}
           {tab === "account" && <AccountPanel />}
           {tab === "security" && <SecurityPanel />}
@@ -62,91 +61,15 @@ export default function SettingsPage() {
   );
 }
 
-function RiskPanel() {
-  const [perTrade, setPerTrade] = useState(1.0);
-  const [dailyLoss, setDailyLoss] = useState(5);
-  const [maxLev, setMaxLev] = useState(3);
-  const [focus, setFocus] = useState<"large_only" | "small_only" | "both">("both");
-  return (
-    <>
-      <Card>
-        <CardHeader title="Position risk" />
-        <div className="p-6 space-y-6">
-          <Slider
-            label="Risk per trade"
-            value={perTrade}
-            min={0.25}
-            max={3}
-            step={0.25}
-            unit="% of equity"
-            onChange={setPerTrade}
-            hint="Caps the dollar loss on stop-loss hit. 1% is the locked default."
-          />
-          <Slider
-            label="Daily loss cap"
-            value={dailyLoss}
-            min={1}
-            max={10}
-            step={0.5}
-            unit="% of equity"
-            onChange={setDailyLoss}
-            hint="Trading halts for the day if cumulative loss exceeds this."
-          />
-          <Slider
-            label="Max leverage"
-            value={maxLev}
-            min={1}
-            max={10}
-            step={1}
-            unit="×"
-            onChange={setMaxLev}
-            hint="Hard ceiling enforced even if Bybit account allows higher."
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="LVN focus mode" />
-        <div className="p-6 grid sm:grid-cols-3 gap-3">
-          <Choice
-            label="Large only"
-            body="Take only the deepest LVNs. Lower frequency, higher conviction."
-            selected={focus === "large_only"}
-            onClick={() => setFocus("large_only")}
-          />
-          <Choice
-            label="Both"
-            body="Default. Take whichever LVN was tested first in cluster."
-            selected={focus === "both"}
-            onClick={() => setFocus("both")}
-            recommended
-          />
-          <Choice
-            label="Small only"
-            body="Filter to small LVNs. Higher frequency, smaller R targets."
-            selected={focus === "small_only"}
-            onClick={() => setFocus("small_only")}
-          />
-        </div>
-      </Card>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="secondary" size="md">Cancel</Button>
-        <Button variant="primary" size="md">Save changes</Button>
-      </div>
-    </>
-  );
-}
-
 function NotificationsPanel() {
   return (
     <>
       <Card>
         <CardHeader title="Channels" />
         <div className="divide-y divide-line-divider">
-          <Toggle label="Email" detail="support@secureops.co.il" defaultOn />
+          <Toggle label="Email" detail="Your account email" defaultOn />
           <Toggle label="Telegram" detail="Not linked" />
-          <Toggle label="Webhook" detail="https://hook.firm.com/btg" />
+          <Toggle label="Webhook" detail="Coming soon" />
           <Toggle label="In-app push" detail="When the dashboard tab is open" defaultOn />
         </div>
       </Card>
@@ -199,90 +122,14 @@ function SecurityPanel() {
       <CardHeader title="Security" />
       <div className="p-6 space-y-5 text-[13.5px] text-ink-secondary">
         <Field label="Two-factor (TOTP)" value="Not enabled" badge={<Badge tone="paper">Off</Badge>} />
-        <Field label="Encryption" value="AWS KMS envelope" trailing={<Lock size={14} className="text-success" strokeWidth={1.5} />} />
+        <Field label="Encryption" value="AES-256-GCM (server-held key)" trailing={<Lock size={14} className="text-success" strokeWidth={1.5} />} />
         <p className="text-[12.5px] text-ink-tertiary leading-relaxed">
-          Your API keys are crypto-shredded on revoke or account deletion. We
-          do not retain secret material after revocation.
+          Your API keys are encrypted at rest with a server-only key and
+          crypto-shredded on revoke or account deletion. We do not retain
+          secret material after revocation.
         </p>
       </div>
     </Card>
-  );
-}
-
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  onChange,
-  hint,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  onChange: (v: number) => void;
-  hint: string;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between">
-        <span className="text-[12.5px] font-medium text-ink-primary">{label}</span>
-        <span className="font-mono text-[14px] text-ink-primary tabular-nums">
-          {value} <span className="text-ink-tertiary text-[12px]">{unit}</span>
-        </span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="mt-3 w-full h-1 rounded-full bg-bg-elevated appearance-none accent-accent cursor-pointer"
-      />
-      <p className="mt-2 text-[11.5px] text-ink-tertiary leading-snug">{hint}</p>
-    </div>
-  );
-}
-
-function Choice({
-  label,
-  body,
-  selected,
-  onClick,
-  recommended = false,
-}: {
-  label: string;
-  body: string;
-  selected: boolean;
-  onClick: () => void;
-  recommended?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "text-left p-4 rounded-md border transition-colors",
-        selected
-          ? "border-accent/50 bg-accent/[0.05]"
-          : "border-line-subtle bg-bg-base hover:border-line",
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-ink-primary">{label}</span>
-        {recommended && (
-          <span className="text-[10px] text-accent uppercase tracking-[0.08em] font-semibold">
-            Default
-          </span>
-        )}
-      </div>
-      <p className="mt-1.5 text-[12px] text-ink-secondary leading-snug">{body}</p>
-    </button>
   );
 }
 
