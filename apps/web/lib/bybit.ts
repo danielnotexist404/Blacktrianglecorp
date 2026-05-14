@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+// Bybit V5 API helpers using Web Crypto (works on Node + Edge runtimes).
 
 export type BybitMode = "demo" | "live";
 
@@ -9,23 +9,32 @@ const HOSTS: Record<BybitMode, string> = {
 
 const RECV_WINDOW = "5000";
 
-// A more browser-ish UA helps with some WAFs that block obvious bot strings.
+// More browser-like UA — defeats some WAFs that block obvious bot strings.
 const UA =
   "Mozilla/5.0 (compatible; BTG-Trader/0.1; +https://blacktrianglecorp.vercel.app)";
 
-function signGet(secret: string, params: { timestamp: string; apiKey: string; query: string }) {
-  const message = params.timestamp + params.apiKey + RECV_WINDOW + params.query;
-  return createHmac("sha256", secret).update(message).digest("hex");
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  const bytes = new Uint8Array(sig);
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, "0");
+  }
+  return hex;
 }
 
 export type VerifyResult =
   | { ok: true; permissions: ("read" | "trade")[] }
   | { ok: false; error: string };
 
-/**
- * Probe a public Bybit endpoint to confirm the server can reach Bybit at all.
- * Returns null on success, an error message on failure.
- */
 async function probeReachability(host: string): Promise<string | null> {
   try {
     const r = await fetch(`${host}/v5/market/time`, {
@@ -37,9 +46,8 @@ async function probeReachability(host: string): Promise<string | null> {
       const body = await r.text().catch(() => "");
       return (
         `Cannot reach Bybit from our server — even a public endpoint (${host}/v5/market/time) ` +
-        `returns 403. This is a Bybit-side block on our server's IP range, not your key. ` +
-        `Likely fixes: (a) move this route to a different Vercel region, (b) route through ` +
-        `a dedicated proxy. Body: ${body.slice(0, 160)}`
+        `returns 403. Bybit's CloudFront is blocking our outbound region. ` +
+        `Body: ${body.slice(0, 240)}`
       );
     }
     if (!r.ok) {
@@ -51,14 +59,6 @@ async function probeReachability(host: string): Promise<string | null> {
   }
 }
 
-/**
- * Verify a Bybit API key by hitting /v5/user/query-api and inspecting the
- * permission set. Rejects any key with Withdraw enabled.
- *
- * Endpoint host depends on mode:
- *   demo -> api-demo.bybit.com (Bybit Demo Trading)
- *   live -> api.bybit.com      (Bybit mainnet)
- */
 export async function verifyBybitKey(
   apiKey: string,
   apiSecret: string,
@@ -66,16 +66,14 @@ export async function verifyBybitKey(
 ): Promise<VerifyResult> {
   const host = HOSTS[mode];
 
-  // 1. Connectivity probe — distinguishes "Bybit blocks our IP" from
-  //    "your key is bad / endpoint rejected auth".
   const reachErr = await probeReachability(host);
-  if (reachErr) {
-    return { ok: false, error: reachErr };
-  }
+  if (reachErr) return { ok: false, error: reachErr };
 
-  // 2. Authed call.
   const timestamp = Date.now().toString();
-  const sign = signGet(apiSecret, { timestamp, apiKey, query: "" });
+  const sign = await hmacSha256Hex(
+    apiSecret,
+    timestamp + apiKey + RECV_WINDOW,
+  );
 
   let res: Response;
   try {
@@ -109,16 +107,13 @@ export async function verifyBybitKey(
       /* ignore */
     }
     if (res.status === 403) {
-      // Probe passed (we wouldn't be here otherwise) but the authed call failed.
-      // That means Bybit rejected this specific request based on key/signature,
-      // not based on our IP.
       return {
         ok: false,
         error:
-          "Bybit returned 403 on the authed call (but our server can reach Bybit fine). " +
-          "This usually means: (a) wrong environment — the key was created in your real " +
-          "Bybit account, not Demo Trading; try recreating it after toggling Demo Trading " +
-          "mode on bybit.com; (b) the key was deleted / expired on Bybit. " +
+          "Bybit returned 403 on the authed call (our server can reach Bybit fine). " +
+          "Almost always means the key was created on your real Bybit account, not " +
+          "in Demo Trading mode. Toggle Demo Trading on bybit.com, create a fresh key " +
+          "there, and try again. " +
           (body ? `Bybit response: ${body}` : ""),
       };
     }
@@ -154,7 +149,7 @@ export async function verifyBybitKey(
         ok: false,
         error:
           mode === "demo"
-            ? "Bybit rejected the key. The key may have been created on your real Bybit account rather than in Demo Trading mode. Toggle Demo Trading on bybit.com and create a fresh key there."
+            ? "Bybit rejected the key. Most likely it was created on your real Bybit account, not in Demo Trading mode. Toggle Demo Trading on bybit.com and recreate the key there."
             : "Bybit rejected the key. Make sure this is a mainnet key, not a Demo Trading key.",
       };
     }
@@ -166,8 +161,7 @@ export async function verifyBybitKey(
   if (withdraw.length > 0) {
     return {
       ok: false,
-      error:
-        "This key has Withdraw permission. Revoke withdraw on Bybit before connecting.",
+      error: "This key has Withdraw permission. Revoke withdraw on Bybit before connecting.",
     };
   }
 

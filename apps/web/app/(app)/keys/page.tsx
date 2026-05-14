@@ -2,10 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { KeysClient, type StoredKey } from "./keys-client";
 
 export const dynamic = "force-dynamic";
-// Frankfurt is closer to where Bybit is willing to accept server traffic
-// than Vercel's default US region. Server actions invoked from this page
-// inherit this region.
-export const preferredRegion = ["fra1"];
+// Edge Runtime so region pinning is actually honored on Hobby plan
+// (Node serverless `preferredRegion` is Pro-only). Singapore is closest
+// to Bybit's infrastructure and is not in their CloudFront geo-block list.
+export const runtime = "edge";
+export const preferredRegion = "sin1";
 
 export default async function KeysPage() {
   const supabase = await createClient();

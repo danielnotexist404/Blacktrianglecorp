@@ -42,7 +42,7 @@ export async function connectKey(formData: FormData): Promise<ActionResult> {
   // 3. Encrypt the secret with the server-held key.
   let encrypted: string;
   try {
-    encrypted = encryptSecret(apiSecret);
+    encrypted = await encryptSecret(apiSecret);
   } catch (e) {
     return {
       ok: false,
