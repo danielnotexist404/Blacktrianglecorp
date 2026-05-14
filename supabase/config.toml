@@ -1,0 +1,21 @@
+# Supabase configuration for the BTG Trader project.
+# Used by the Supabase CLI for migrations + local dev.
+
+project_id = "btg-trader"
+
+[auth]
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[auth.external.google]
+enabled = false
+# When you enable Google SSO, set client_id + secret via the dashboard,
+# not in this file.
+
+[db]
+major_version = 17

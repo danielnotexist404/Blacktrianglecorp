@@ -1,0 +1,41 @@
+[project]
+name = "btg-strategy"
+version = "0.1.0"
+description = "BTG Trader strategy engine (Volume Profile + HDLX + signal logic)."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",
+    "mypy>=1.10",
+    "ruff>=0.6",
+]
+inspect = [
+    "ccxt>=4.0",
+    "matplotlib>=3.8",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["btg_strategy*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+files = ["btg_strategy"]
+warn_unreachable = true
+disallow_any_unimported = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]

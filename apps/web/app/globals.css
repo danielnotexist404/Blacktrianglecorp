@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background: #000;
+  color: #f5f5f7;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Tabular numeric figures everywhere mono is used. */
+.font-mono,
+.font-mono * {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Selection */
+::selection {
+  background: rgba(220, 38, 38, 0.35);
+  color: #fff;
+}
+
+/* Scrollbar — subtle dark */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus visibility — keyboard users only */
+:focus-visible {
+  outline: 2px solid rgba(220, 38, 38, 0.5);
+  outline-offset: 2px;
+}
+
+/* Page mount fade-in */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-in {
+  animation: fadeUp 260ms ease-out both;
+}
+.fade-in-stagger > * {
+  animation: fadeUp 320ms ease-out both;
+}
+.fade-in-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.fade-in-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.fade-in-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.fade-in-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.fade-in-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.fade-in-stagger > *:nth-child(6) { animation-delay: 200ms; }
+
+/* Row insertion flash */
+@keyframes rowFlash {
+  0% { background-color: rgba(220, 38, 38, 0.10); }
+  100% { background-color: transparent; }
+}
+.row-flash {
+  animation: rowFlash 1200ms ease-out both;
+}
+
+/* Equity curve stroke draw-in */
+@keyframes drawLine {
+  from { stroke-dashoffset: 4000; }
+  to { stroke-dashoffset: 0; }
+}
+.draw-line {
+  stroke-dasharray: 4000;
+  animation: drawLine 1400ms ease-out both;
+}
+
+/* Legal article body */
+.prose-legal strong {
+  color: #f5f5f7;
+  font-weight: 600;
+}
+.prose-legal a {
+  color: #f5f5f7;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: #3f3f46;
+}
+.prose-legal a:hover {
+  text-decoration-color: #f5f5f7;
+}
+.prose-legal code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+  background: #15151a;
+  border: 1px solid #1f1f24;
+  border-radius: 4px;
+  color: #f5f5f7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .fade-in-stagger > *,
+  .row-flash,
+  .draw-line,
+  .animate-pulseDot {
+    animation: none !important;
+  }
+}
